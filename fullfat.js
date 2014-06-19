@@ -14,6 +14,7 @@ var crypto = require('crypto')
 var once = require('once')
 var parse = require('parse-json-response')
 var hh = require('http-https')
+var tunnel = require('tunnel-agent')
 
 var version = require('./package.json').version
 var ua = 'npm FullFat/' + version + ' node/' + process.version
@@ -28,7 +29,8 @@ function FullFat(conf) {
     throw new Error('skim and fat database urls required')
   }
 
-  this.skim = url.parse(conf.skim).href
+  this.skimParsed = url.parse(conf.skim);
+  this.skim = this.skimParsed.href;
   this.skim = this.skim.replace(/\/+$/, '')
 
   var f = url.parse(conf.fat)
@@ -44,6 +46,7 @@ function FullFat(conf) {
     this.registry = this.registry.replace(/\/+$/, '')
   }
 
+  this.proxy = conf.proxy;
   this.ua = conf.ua || ua
   this.inactivity_ms = conf.inactivity_ms || 1000 * 60 * 60
   this.seqFile = conf.seq_file
@@ -66,6 +69,7 @@ function FullFat(conf) {
 
   this.boundary = 'npmFullFat-' + crypto.randomBytes(6).toString('base64')
 
+  this.agent = this.proxy ? this.proxyAgent() : false;
   this.readSeq(this.seqFile)
 }
 
@@ -95,6 +99,7 @@ FullFat.prototype.start = function() {
   this.follow = follow({
     db: this.skim,
     since: this.since,
+    request: { proxy: this.proxy },
     inactivity_ms: this.inactivity_ms
   }, this.onchange.bind(this))
   this.follow.on('error', this.emit.bind(this, 'error'))
@@ -155,6 +160,7 @@ FullFat.prototype.getDoc = function(change) {
   var q = '?revs=true&att_encoding_info=true'
   var opt = url.parse(this.skim + '/' + change.id + q)
   opt.method = 'GET'
+  opts.agent = this.agent;
   opt.headers = {
     'user-agent': this.ua,
     'connection': 'close'
@@ -673,3 +679,25 @@ Counter.prototype._write = function(chunk, encoding, cb) {
   this.count += chunk.length
   cb()
 }
+
+Fullfat.prototype.proxyAgent = function () {
+  if (typeof this.proxy == 'string') this.proxy = url.parse(this.proxy)
+
+  // do the HTTP CONNECT dance using koichik/node-tunnel
+  if (http.globalAgent && this.skimdb.protocol === 'https:') {
+    var tunnelFn = this.proxy.protocol === 'http:'
+      ? tunnel.httpsOverHttp
+      : tunnel.httpsOverHttps
+
+    var tunnelOptions = { proxy: { host: this.proxy.hostname
+                                  , port: +this.proxy.port
+                                  , proxyAuth: this.proxy.auth
+                                  , headers: { Host: this.skimParsed.hostname + ':' +
+                                      (this.skimParsed.port || this.skimParsed.protocol === 'https:' ? 443 : 80) }}
+                        , rejectUnauthorized: this.rejectUnauthorized
+                        , ca: this.ca }
+
+    return tunnelFn(tunnelOptions)
+  }
+  return false;
+};
