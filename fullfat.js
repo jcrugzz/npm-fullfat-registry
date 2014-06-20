@@ -160,7 +160,7 @@ FullFat.prototype.getDoc = function(change) {
   var q = '?revs=true&att_encoding_info=true'
   var opt = url.parse(this.skim + '/' + change.id + q)
   opt.method = 'GET'
-  opts.agent = this.agent;
+  opt.agent = this.agent;
   opt.headers = {
     'user-agent': this.ua,
     'connection': 'close'
