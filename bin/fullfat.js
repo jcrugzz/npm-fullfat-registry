@@ -44,6 +44,7 @@ var parser = dashdash.createParser({
       type: 'string',
       default: null,
       help: 'proxy URL if we are tunneling through a proxy',
+      env: 'PROXY',
       helpArg: 'PROXY' },
     { names: [ 'help', 'h' ],
       type: 'bool',
