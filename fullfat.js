@@ -69,7 +69,7 @@ function FullFat(conf) {
 
   this.boundary = 'npmFullFat-' + crypto.randomBytes(6).toString('base64')
 
-  this.agent = this.proxy ? this.proxyAgent() : false;
+  this.agent = this.proxy ? this.proxyAgent(this.skimParsed) : false;
   this.readSeq(this.seqFile)
 }
 
@@ -542,6 +542,7 @@ FullFat.prototype.fetchOne = function(change, need, did, v) {
   }
 
   r.method = 'GET'
+  r.agent = this.proxyAgent(r);
   r.headers = {
     'user-agent': this.ua,
     'connection': 'close'
@@ -680,11 +681,12 @@ Counter.prototype._write = function(chunk, encoding, cb) {
   cb()
 }
 
-Fullfat.prototype.proxyAgent = function () {
+// Pulled from mikeal/request and modified
+Fullfat.prototype.proxyAgent = function (uri) {
   if (typeof this.proxy == 'string') this.proxy = url.parse(this.proxy)
 
   // do the HTTP CONNECT dance using koichik/node-tunnel
-  if (http.globalAgent && this.skimdb.protocol === 'https:') {
+  if (http.globalAgent && uri.protocol === 'https:') {
     var tunnelFn = this.proxy.protocol === 'http:'
       ? tunnel.httpsOverHttp
       : tunnel.httpsOverHttps
@@ -692,8 +694,8 @@ Fullfat.prototype.proxyAgent = function () {
     var tunnelOptions = { proxy: { host: this.proxy.hostname
                                   , port: +this.proxy.port
                                   , proxyAuth: this.proxy.auth
-                                  , headers: { Host: this.skimParsed.hostname + ':' +
-                                      (this.skimParsed.port || this.skimParsed.protocol === 'https:' ? 443 : 80) }}
+                                  , headers: { Host: uri.hostname + ':' +
+                                      (uri.port || uri.protocol === 'https:' ? 443 : 80) }}
                         , rejectUnauthorized: this.rejectUnauthorized
                         , ca: this.ca }
 
