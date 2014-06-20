@@ -682,24 +682,21 @@ Counter.prototype._write = function(chunk, encoding, cb) {
 }
 
 // Pulled from mikeal/request and modified
-Fullfat.prototype.proxyAgent = function (uri) {
+FullFat.prototype.proxyAgent = function (uri) {
   if (typeof this.proxy == 'string') this.proxy = url.parse(this.proxy)
 
   // do the HTTP CONNECT dance using koichik/node-tunnel
-  if (http.globalAgent && uri.protocol === 'https:') {
-    var tunnelFn = this.proxy.protocol === 'http:'
-      ? tunnel.httpsOverHttp
-      : tunnel.httpsOverHttps
+  var tunnelFn = this.proxy.protocol === 'http:'
+    ? (uri.protocol === 'http:' ? tunnel.httpOverHttp : tunnel.httpsOverHttp)
+    : (uri.protocol === 'https:' ? tunnel.httpsOverHttps : tunnel.httpOverHttps);
 
-    var tunnelOptions = { proxy: { host: this.proxy.hostname
-                                  , port: +this.proxy.port
-                                  , proxyAuth: this.proxy.auth
-                                  , headers: { Host: uri.hostname + ':' +
-                                      (uri.port || uri.protocol === 'https:' ? 443 : 80) }}
-                        , rejectUnauthorized: this.rejectUnauthorized
-                        , ca: this.ca }
+  var tunnelOptions = { proxy: { host: this.proxy.hostname
+                                , port: +this.proxy.port
+                                , proxyAuth: this.proxy.auth
+                                , headers: { Host: uri.hostname + ':' +
+                                    (uri.port || uri.protocol === 'https:' ? 443 : 80) }}
+                      , rejectUnauthorized: this.rejectUnauthorized
+                      , ca: this.ca }
 
-    return tunnelFn(tunnelOptions)
-  }
-  return false;
+  return tunnelFn(tunnelOptions)
 };
