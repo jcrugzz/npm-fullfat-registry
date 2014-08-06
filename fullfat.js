@@ -69,6 +69,8 @@ function FullFat(conf) {
 
   this.boundary = 'npmFullFat-' + crypto.randomBytes(6).toString('base64')
 
+  this.strictSSL = options.strictSSL || false;
+
   this.agent = this.proxy ? this.proxyAgent(this.skimParsed) : false;
   this.readSeq(this.seqFile)
 }
@@ -99,7 +101,7 @@ FullFat.prototype.start = function() {
   this.follow = follow({
     db: this.skim,
     since: this.since,
-    request: { proxy: this.proxy },
+    request: { proxy: this.proxy, strictSSL: this.strictSSL },
     inactivity_ms: this.inactivity_ms
   }, this.onchange.bind(this))
   this.follow.on('error', this.emit.bind(this, 'error'))
@@ -695,7 +697,7 @@ FullFat.prototype.proxyAgent = function (uri) {
                                 , proxyAuth: this.proxy.auth
                                 , headers: { Host: uri.hostname + ':' +
                                     (uri.port || uri.protocol === 'https:' ? 443 : 80) }}
-                      , rejectUnauthorized: this.rejectUnauthorized
+                      , rejectUnauthorized: this.rejectUnauthorized || this.strictSSL
                       , ca: this.ca }
 
   return tunnelFn(tunnelOptions)
